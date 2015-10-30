@@ -1264,7 +1264,7 @@ class ARS(object):
                 )
             field_value_struct.value.u.enumVal = enum_id
         elif data_type == arh.AR_DATA_TYPE_TIME:
-            field_value_struct.value.u.timeVal = value.strftime('%s')
+            field_value_struct.value.u.timeVal = int(value.strftime('%s'))
         else:
             raise ARSError(
                 'An unknown data type was encountered for field name {} '
