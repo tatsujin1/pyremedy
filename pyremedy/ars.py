@@ -275,7 +275,7 @@ class ARS(object):
         missing = set(self.field_name_to_id_cache[schema]).difference(fields)
         if missing:
             raise ARSError(
-				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(sorted(missing)))
 			)
 
         entry_id_list = arh.AREntryIdList()
@@ -391,7 +391,7 @@ class ARS(object):
         missing = set(self.field_name_to_id_cache[schema]).difference(fields)
         if missing:
             raise ARSError(
-				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(sorted(missing)))
 			)
 
         schema_artype = arh.ARNameType()
@@ -590,7 +590,7 @@ class ARS(object):
         missing = set(self.field_name_to_id_cache[schema]).difference(entry_values.keys())
         if missing:
             raise ARSError(
-				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(sorted(missing)))
 			)
 
         # Prepare the fields that will be added to the new entry
@@ -668,7 +668,7 @@ class ARS(object):
         missing = set(self.field_name_to_id_cache[schema]).difference(entry_values.keys())
         if missing:
             raise ARSError(
-				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(sorted(missing)))
 			)
 
         # Prepare the entry id struct
