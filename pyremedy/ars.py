@@ -277,12 +277,6 @@ class ARS(object):
             raise ARSError(
 				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
 			)
-        #for field in fields:
-        #    if field not in self.field_name_to_id_cache[schema]:
-        #        raise ARSError(
-        #            'A field with name {} does not exist in schema '
-        #            '{}'.format(field, schema)
-        #        )
 
         entry_id_list = arh.AREntryIdList()
         entry_id_list.numItems = 1
@@ -399,12 +393,6 @@ class ARS(object):
             raise ARSError(
 				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
 			)
-        #for field in fields:
-        #    if field not in self.field_name_to_id_cache[schema]:
-        #        raise ARSError(
-        #            'A field with name {} does not exist in schema '
-        #            '{}'.format(field, schema)
-        #        )
 
         schema_artype = arh.ARNameType()
         schema_artype.value = schema
@@ -604,12 +592,6 @@ class ARS(object):
             raise ARSError(
 				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
 			)
-        #for field in entry_values.keys():
-        #    if field not in self.field_name_to_id_cache[schema]:
-        #        raise ARSError(
-        #            'A field with name {} does not exist in schema '
-        #            '{}'.format(field, schema)
-        #        )
 
         # Prepare the fields that will be added to the new entry
         field_value_list = arh.ARFieldValueList()
@@ -688,12 +670,6 @@ class ARS(object):
             raise ARSError(
 				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
 			)
-        #for field in entry_values.keys():
-        #    if field not in self.field_name_to_id_cache[schema]:
-        #        raise ARSError(
-        #            'A field with name {} does not exist in schema '
-        #            '{}'.format(field, schema)
-        #        )
 
         # Prepare the entry id struct
         entry_id_list = arh.AREntryIdList()
