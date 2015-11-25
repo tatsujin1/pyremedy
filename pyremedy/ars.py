@@ -8,6 +8,26 @@ from datetime import datetime
 from . import arh
 from .exceptions import ARSError
 
+import sys
+if sys.version_info[0] >= 3:
+	bytestr_type = bytes
+	unicodestr_type = str
+else:
+	bytestr_type = str
+	unicodestr_type = unicode
+	
+	
+def enc_u8(us):
+    if type(us) is unicodestr_type:
+        return us.encode('utf-8')
+    return us  # assume it is already correct encoding (or another type)
+	
+def dec_u8(bs):
+    if type(bs) is bytestr_type:
+        return bs.decode('utf-8')
+    return bs  # assume it is already unicode (or a disparate type)
+
+
 
 class ARS(object):
     """The ARS object implements a simple CRUD interface for Remedy ARS
@@ -71,9 +91,9 @@ class ARS(object):
         memset(byref(self.control), 0, sizeof(arh.ARControlStruct))
 
         # Load the ARControlStruct with server details and user credentials
-        self.control.server = server
-        self.control.user = user
-        self.control.password = password
+        self.control.server = enc_u8(server)
+        self.control.user = enc_u8(user)
+        self.control.password = enc_u8(password)
 
         # Note on FreeAR functions:
         #
@@ -176,7 +196,7 @@ class ARS(object):
             return self.schema_cache
 
         name_artype = arh.ARNameType()
-        name_artype.value = ''
+        name_artype.value = b''
         schema_list = arh.ARNameList()
 
         if (
@@ -211,7 +231,7 @@ class ARS(object):
 
         # Save the schema list into the cache
         self.schema_cache = [
-            schema_list.nameList[i].value for i in range(schema_list.numItems)
+            dec_u8(schema_list.nameList[i].value) for i in range(schema_list.numItems)
         ]
 
         self.arlib.FreeARNameList(byref(schema_list), arh.FALSE)
@@ -252,12 +272,17 @@ class ARS(object):
         # Validate that all fields exist.  Note that this is performed here
         # so that we aren't in the middle of allocating memory to the
         # AREntryListFieldList struct when we realise a field is invalid.
-        for field in fields:
-            if field not in self.field_name_to_id_cache[schema]:
-                raise ARSError(
-                    'A field with name {} does not exist in schema '
-                    '{}'.format(field, schema)
-                )
+        missing = set(self.field_name_to_id_cache[schema]).difference(fields)
+        if missing:
+            raise ARSError(
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+			)
+        #for field in fields:
+        #    if field not in self.field_name_to_id_cache[schema]:
+        #        raise ARSError(
+        #            'A field with name {} does not exist in schema '
+        #            '{}'.format(field, schema)
+        #        )
 
         entry_id_list = arh.AREntryIdList()
         entry_id_list.numItems = 1
@@ -266,7 +291,7 @@ class ARS(object):
                 entry_id_list.numItems * sizeof(arh.AREntryIdType)
             ), POINTER(arh.AREntryIdType)
         )
-        entry_id_list.entryIdList[0].value = entry_id
+        entry_id_list.entryIdList[0].value = enc_u8(entry_id)
 
         internal_id_list = arh.ARInternalIdList()
         internal_id_list.numItems = len(fields)
@@ -282,7 +307,7 @@ class ARS(object):
             )
 
         schema_artype = arh.ARNameType()
-        schema_artype.value = schema
+        schema_artype.value = enc_u8(schema)
         field_value_list = arh.ARFieldValueList()
 
         if (
@@ -318,12 +343,12 @@ class ARS(object):
 
         for i in range(field_value_list.numItems):
             field_id = field_value_list.fieldValueList[i].fieldId
-            field_name = self.field_id_to_name_cache[schema][field_id]
+            field_name = dec_u8(self.field_id_to_name_cache[schema][field_id])
             value_struct = field_value_list.fieldValueList[i].value
             try:
-                entry_values[field_name] = self._extract_field(
+                entry_values[field_name] = dec_u8(self._extract_field(
                     schema, field_id, value_struct
-                )
+                ))
             except ARSError:
                 self.arlib.FreeAREntryIdList(byref(entry_id_list), arh.FALSE)
                 self.arlib.FreeARInternalIdList(
@@ -369,12 +394,17 @@ class ARS(object):
         # Validate that all fields exist.  Note that this is performed here
         # so that we aren't in the middle of allocating memory to the
         # AREntryListFieldList struct when we realise a field is invalid.
-        for field in fields:
-            if field not in self.field_name_to_id_cache[schema]:
-                raise ARSError(
-                    'A field with name {} does not exist in schema '
-                    '{}'.format(field, schema)
-                )
+        missing = set(self.field_name_to_id_cache[schema]).difference(fields)
+        if missing:
+            raise ARSError(
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+			)
+        #for field in fields:
+        #    if field not in self.field_name_to_id_cache[schema]:
+        #        raise ARSError(
+        #            'A field with name {} does not exist in schema '
+        #            '{}'.format(field, schema)
+        #        )
 
         schema_artype = arh.ARNameType()
         schema_artype.value = schema
@@ -569,12 +599,17 @@ class ARS(object):
         # Validate that all fields exist.  Note that this is performed here
         # so that we aren't in the middle of allocating memory to the
         # ARFieldValueList struct when we realise a field is invalid.
-        for field in entry_values.keys():
-            if field not in self.field_name_to_id_cache[schema]:
-                raise ARSError(
-                    'A field with name {} does not exist in schema '
-                    '{}'.format(field, schema)
-                )
+        missing = set(self.field_name_to_id_cache[schema]).difference(entry_values.keys())
+        if missing:
+            raise ARSError(
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+			)
+        #for field in entry_values.keys():
+        #    if field not in self.field_name_to_id_cache[schema]:
+        #        raise ARSError(
+        #            'A field with name {} does not exist in schema '
+        #            '{}'.format(field, schema)
+        #        )
 
         # Prepare the fields that will be added to the new entry
         field_value_list = arh.ARFieldValueList()
@@ -593,7 +628,7 @@ class ARS(object):
 
         entry_id_artype = arh.AREntryIdType()
         schema_artype = arh.ARNameType()
-        schema_artype.value = schema
+        schema_artype.value = enc_u8(schema)
 
         if (
             self.arlib.ARCreateEntry(
@@ -627,7 +662,7 @@ class ARS(object):
         self.arlib.FreeARStatusList(byref(self.status), arh.FALSE)
 
         # Return the newly created entry id to the caller
-        return entry_id_artype.value
+        return dec_u8(entry_id_artype.value)
 
     def update(self, schema, entry_id, entry_values):
         """Updates a chosen entry in a given schema using the provided
@@ -648,12 +683,17 @@ class ARS(object):
         # Validate that all fields exist.  Note that this is performed here
         # so that we aren't in the middle of allocating memory to the
         # ARFieldValueList struct when we realise a field is invalid.
-        for field in entry_values.keys():
-            if field not in self.field_name_to_id_cache[schema]:
-                raise ARSError(
-                    'A field with name {} does not exist in schema '
-                    '{}'.format(field, schema)
-                )
+        missing = set(self.field_name_to_id_cache[schema]).difference(entry_values.keys())
+        if missing:
+            raise ARSError(
+				'Schema {} does not have field(s): {}'.format(schema, ', '.join(missing))
+			)
+        #for field in entry_values.keys():
+        #    if field not in self.field_name_to_id_cache[schema]:
+        #        raise ARSError(
+        #            'A field with name {} does not exist in schema '
+        #            '{}'.format(field, schema)
+        #        )
 
         # Prepare the entry id struct
         entry_id_list = arh.AREntryIdList()
@@ -663,7 +703,7 @@ class ARS(object):
                 entry_id_list.numItems * sizeof(arh.AREntryIdType)
             ), POINTER(arh.AREntryIdType)
         )
-        entry_id_list.entryIdList[0].value = entry_id
+        entry_id_list.entryIdList[0].value = enc_u8(entry_id)
 
         # Prepare the fields that will be updated
         field_value_list = arh.ARFieldValueList()
@@ -681,7 +721,7 @@ class ARS(object):
             )
 
         schema_artype = arh.ARNameType()
-        schema_artype.value = schema
+        schema_artype.value = enc_u8(schema)
 
         if (
             self.arlib.ARSetEntry(
@@ -735,7 +775,7 @@ class ARS(object):
         self.errors = []
 
         schema_artype = arh.ARNameType()
-        schema_artype.value = schema
+        schema_artype.value = enc_u8(schema)
 
         entry_id_list = arh.AREntryIdList()
         entry_id_list.numItems = 1
@@ -744,7 +784,7 @@ class ARS(object):
                 entry_id_list.numItems * sizeof(arh.AREntryIdType)
             ), POINTER(arh.AREntryIdType)
         )
-        entry_id_list.entryIdList[0].value = entry_id
+        entry_id_list.entryIdList[0].value = enc_u8(entry_id)
 
         if (
             self.arlib.ARDeleteEntry(
@@ -798,7 +838,7 @@ class ARS(object):
             return
 
         schema_artype = arh.ARNameType()
-        schema_artype.value = schema
+        schema_artype.value = enc_u8(schema)
 
         field_id_list = arh.ARInternalIdList()
 
@@ -912,36 +952,37 @@ class ARS(object):
             self.arlib.FreeARStatusList(byref(self.status), arh.FALSE)
             raise ARSError(
                 'Unable to obtain field information for schema '
-                '{}'.format(schema)
+                '{}'.format(schema_u)
             )
 
         # Initialise the name and enum caches for this schema
-        self.field_id_to_name_cache[schema] = OrderedDict()
-        self.field_name_to_id_cache[schema] = OrderedDict()
-        self.field_id_to_type_cache[schema] = OrderedDict()
-        self.enum_id_to_name_cache[schema] = OrderedDict()
-        self.enum_name_to_id_cache[schema] = OrderedDict()
+        schema_u = dec_u8(schema)
+        self.field_id_to_name_cache[schema_u] = OrderedDict()
+        self.field_name_to_id_cache[schema_u] = OrderedDict()
+        self.field_id_to_type_cache[schema_u] = OrderedDict()
+        self.enum_id_to_name_cache[schema_u] = OrderedDict()
+        self.enum_name_to_id_cache[schema_u] = OrderedDict()
 
         for i in range(field_id_list.numItems):
             # Save the field name to id mapping in the cache
             field_id = field_id_list.internalIdList[i]
-            field_name = field_name_list.nameList[i].value
+            field_name = dec_u8(field_name_list.nameList[i].value)
             data_type = field_type_list.intList[i]
 
             # Save the field id to name mapping in the cache
-            self.field_id_to_name_cache[schema][field_id] = field_name
+            self.field_id_to_name_cache[schema_u][field_id] = field_name
 
             # Save the field name to id mapping in the cache
-            self.field_name_to_id_cache[schema][field_name] = field_id
+            self.field_name_to_id_cache[schema_u][field_name] = field_id
 
             # Save the field id to type mapping in the cache
-            self.field_id_to_type_cache[schema][field_id] = data_type
+            self.field_id_to_type_cache[schema_u][field_id] = data_type
 
             # Retrieve enum values if this field is an enum type
             if data_type == arh.AR_DATA_TYPE_ENUM:
                 # Initialise the enum entries for this field
-                self.enum_id_to_name_cache[schema][field_id] = {}
-                self.enum_name_to_id_cache[schema][field_id] = {}
+                self.enum_id_to_name_cache[schema_u][field_id] = {}
+                self.enum_name_to_id_cache[schema_u][field_id] = {}
 
                 field_enum_limits_list = (
                     field_limits_list.fieldLimitList[i].u.enumLimits
@@ -954,10 +995,10 @@ class ARS(object):
                     for j in range(regular_list.numItems):
                         enum_id = j
                         enum_value = regular_list.nameList[j].value
-                        self.enum_id_to_name_cache[schema][field_id][enum_id] = (
+                        self.enum_id_to_name_cache[schema_u][field_id][enum_id] = (
                             enum_value
                         )
-                        self.enum_name_to_id_cache[schema][field_id][enum_value] = (
+                        self.enum_name_to_id_cache[schema_u][field_id][enum_value] = (
                             enum_id
                         )
 
@@ -967,10 +1008,10 @@ class ARS(object):
                     for j in range(custom_list.numItems):
                         enum_id = custom_list.enumItemList[j].itemNumber
                         enum_value = custom_list.enumItemList[j].itemName
-                        self.enum_id_to_name_cache[schema][field_id][enum_id] = (
+                        self.enum_id_to_name_cache[schema_u][field_id][enum_id] = (
                             enum_value
                         )
-                        self.enum_name_to_id_cache[schema][field_id][enum_value] = (
+                        self.enum_name_to_id_cache[schema_u][field_id][enum_value] = (
                             enum_id
                         )
 
@@ -988,7 +1029,7 @@ class ARS(object):
                     self.arlib.FreeARStatusList(byref(self.status), arh.FALSE)
                     raise ARSError(
                         'The field id {} for schema {} is a query enum which '
-                        'is not supported by PyRemedy'.format(field_id, schema)
+                        'is not supported by PyRemedy'.format(field_id, schema_u)
                     )
 
         self.arlib.FreeARInternalIdList(byref(field_id_list), arh.FALSE)
@@ -1252,7 +1293,7 @@ class ARS(object):
             # Note that we must allocate a new block of memory using
             # strdup or we end up with a nasty invalid pointer error
             field_value_struct.value.u.charVal = cast(
-                self.clib.strdup(value), c_char_p
+                self.clib.strdup(enc_u8(value)), c_char_p
             )
         elif data_type == arh.AR_DATA_TYPE_ENUM:
             try:
